@@ -8,6 +8,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.junit4.SpringRunner;
 
+import static org.hamcrest.core.Is.is;
+import static org.hamcrest.core.IsNot.not;
+import static org.junit.Assert.assertThat;
+
 @RunWith(SpringRunner.class)
 @SpringBootTest
 public class DemoServiceTest {
@@ -20,7 +24,6 @@ public class DemoServiceTest {
 
     @Spy
     private DemoEntityRepo spiedRepo;
-
 
     @Test
     public void shouldInvokeRepoMethodOnce_whenGettingTwice_canNotCountInvocationsOnRepo() {
@@ -69,5 +72,33 @@ public class DemoServiceTest {
         Mockito.verify(spiedRepo, Mockito.times(1)).getByIdCached(2);
     }
 
+    @Test
+    public void shouldReturnSameCachedEntityObject_whenGettingBySameIdTwice() {
 
+        /*
+         * This test uses another verification approach.
+         * Rather than verifying invocation count on the repo method
+         * I verify that the same objects is returned when getting from repo with unchanged parameters,
+         * implying that this means they come from cache and not from the repo.
+         */
+        DemoEntity firstFetchedEntity = service.getEntityByIdCached(1);
+
+        DemoEntity secondFetchedEntity = service.getEntityByIdCached(1);
+        assertThat(secondFetchedEntity, is(firstFetchedEntity));
+    }
+
+    @Test
+    public void shouldReturnDifferentEntityObjects_whenGettingBySameIdTwice_becauseCircumventingCache() {
+
+        /*
+         * This test is the cross check for shouldReturnSameCachedEntityObject_whenGettingBySameIdTwice
+         * and what I actually wanted to demonstrate with the tests.
+         * If you forget @Cacheable's default behavior and call a method with that annotation from within the class
+         * you actually circumvent the cache proxy
+         */
+        DemoEntity firstFetchedEntity = service.getEntityByIdNoCachingPossible(1);
+
+        DemoEntity secondFetchedEntity = service.getEntityByIdNoCachingPossible(1);
+        assertThat(secondFetchedEntity, not(firstFetchedEntity));
+    }
 }
